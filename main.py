@@ -1,21 +1,14 @@
-from flask import Flask, request, jsonify
-import psycopg2
+from flask import Flask, jsonify, request
+import psycopg
+from psycopg.rows import dict_row
 import os
-from urllib.parse import urlparse
 
 app = Flask(__name__)
 
 # Подключение к БД
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    url = urlparse(DATABASE_URL)
-    conn = psycopg2.connect(
-        database=url.path[1:],
-        user=url.username,
-        password=url.password,
-        host=url.hostname,
-        port=url.port
-    )
+    conn = psycopg.connect(DATABASE_URL)
 else:
     conn = None
 
@@ -50,11 +43,11 @@ def get_messages():
     if not conn:
         return jsonify({"error": "DB not connected"}), 500
 
-    with conn.cursor() as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT id, content, created_at FROM messages ORDER BY id DESC LIMIT 10")
         rows = cur.fetchall()
 
-    messages = [{"id": r[0], "text": r[1], "time": r[2].isoformat()} for r in rows]
+    messages = [{"id": r["id"], "text": r["content"], "time": r["created_at"].isoformat()} for r in rows]
     return jsonify(messages)
 
 
